@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FD Proximity Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f6; color: #1a1a2e; }
+
+#header { background: #1a1a2e; color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+#header h1 { font-size: 20px; font-weight: 700; }
+#header .sub { font-size: 12px; color: #aaa; margin-top: 2px; }
+#refreshed-at { font-size: 11px; color: #aaa; margin-left: auto; }
+
+#filters { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 10px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+#filters label { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+#filters input[type=date] { border: 1px solid #ccc; border-radius: 6px; padding: 5px 8px; font-size: 13px; }
+#filters button { background: #1a1a2e; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+#filters button:hover { background: #2d2d4e; }
+#lw-text { font-size: 12px; color: #888; }
+
+#tabs { background: #fff; border-bottom: 2px solid #e0e0e0; padding: 0 24px; display: flex; overflow-x: auto; }
+.tab-btn { background: none; border: none; border-bottom: 3px solid transparent; padding: 10px 18px; font-size: 13px; font-weight: 500; cursor: pointer; color: #666; white-space: nowrap; transition: color 0.15s; margin-bottom: -2px; }
+.tab-btn:hover { color: #1a1a2e; background: #f8f9fa; }
+.tab-btn.active { color: #1a1a2e; border-bottom-color: #1a1a2e; font-weight: 700; }
+
+#content { padding: 20px 24px; max-width: 1400px; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+.page-title { font-size: 20px; font-weight: 700; margin-bottom: 14px; }
+.section-title { font-size: 15px; font-weight: 700; margin: 20px 0 10px; }
+
+.kpi-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.kpi-card { background: #fff; border-radius: 10px; padding: 14px 18px; min-width: 150px; flex: 1; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.kpi-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.kpi-value { font-size: 22px; font-weight: 700; margin: 4px 0 2px; }
+.kpi-delta { font-size: 12px; margin-bottom: 2px; }
+.kpi-lw { font-size: 11px; color: #aaa; }
+
+.chart-wrap { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.table-wrap { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.07); overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: #1a1a2e; color: #fff; padding: 8px 12px; text-align: center; font-weight: 600; white-space: nowrap; }
+thead th:first-child { text-align: left; }
+tbody tr:nth-child(even) { background: transparent; }
+tbody td { padding: 7px 12px; text-align: center; border-bottom: 1px solid #eee; white-space: nowrap; }
+tbody td:first-child { text-align: left; font-weight: 600; }
+.row-space-orders td { font-weight: 600; }
+
+.chip { display: inline-block; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+.ov-cards { display: grid; gap: 14px; margin-bottom: 20px; }
+.ov-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.07); border-top: 4px solid #ccc; }
+.ov-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.ov-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ov-metric { background: #f5f6fa; border-radius: 8px; padding: 8px 10px; min-height: 72px; }
+.ov-metric-label { font-size: 10px; color: #888; font-weight: 600; text-transform: uppercase; }
+.ov-metric-value { font-size: 16px; font-weight: 700; margin: 3px 0 2px; }
+.ov-metric-badge { font-size: 10px; }
+
+.pies-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.pie-wrap { background: #fff; border-radius: 10px; padding: 16px; flex: 1; min-width: 260px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.pie-wrap h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; text-align: center; }
+
+.green { color: #27ae60; }
+.red   { color: #e74c3c; }
+.loading { color: #888; padding: 40px; text-align: center; }
+.error-msg { color: #e74c3c; background: #fdf0ef; border-radius: 8px; padding: 20px; font-size: 13px; }
+
+.heatmap-wrap { overflow-x: auto; }
+.hm-table { font-size: 12px; border-collapse: collapse; }
+.hm-table th { background: #1a1a2e; color: #fff; padding: 6px 10px; white-space: nowrap; }
+.hm-table td { padding: 5px 10px; text-align: center; border: 1px solid #f0f0f0; }
+.hm-table td.cat-label { text-align: left; font-weight: 600; background: #fff; white-space: nowrap; }
+.gran-toggle { display:flex; border:1px solid #ccc; border-radius:6px; overflow:hidden; }
+.gran-btn { background:#fff; border:none; border-right:1px solid #ccc; padding:5px 12px; font-size:13px; cursor:pointer; color:#666; }
+.gran-btn:last-child { border-right:none; }
+.gran-btn.active { background:#1a1a2e; color:#fff; }
+.radio-opt { display:flex; align-items:center; gap:4px; cursor:pointer; color:#444; }
+.radio-opt input[type=radio] { accent-color:#e8490a; cursor:pointer; width:14px; height:14px; }
+.classify-wrap { background:#fff; border-radius:10px; padding:16px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <span style="font-size:26px">🍔</span>
+  <div>
+    <h1>FD Proximity Dashboard</h1>
+    <div class="sub">MercadoLibre · Food Delivery</div>
+  </div>
+  <div id="refreshed-at"></div>
+</div>
+
+<div id="filters">
+  <label>Desde <input type="date" id="date-start"></label>
+  <label>Hasta  <input type="date" id="date-end"></label>
+  <button onclick="applyFilters()">↻ Aplicar</button>
+  <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+    <span style="font-weight:600;color:#666">Agrupación</span>
+    <label class="radio-opt"><input type="radio" name="gran" value="day"   onchange="setGran('day')"   checked> Diario</label>
+    <label class="radio-opt"><input type="radio" name="gran" value="week"  onchange="setGran('week')">  Semanal</label>
+    <label class="radio-opt"><input type="radio" name="gran" value="month" onchange="setGran('month')"> Mensual</label>
+  </div>
+  <span id="lw-text"></span>
+</div>
+
+<div id="tabs">
+  <button class="tab-btn active" data-tab="demanda"  onclick="switchTab('demanda')">Demanda</button>
+  <button class="tab-btn"        data-tab="overview" onclick="switchTab('overview')">Overview</button>
+  <button class="tab-btn"        data-tab="ms_ml"    onclick="switchTab('ms_ml')">Main Slider ML</button>
+  <button class="tab-btn"        data-tab="pp_ml"    onclick="switchTab('pp_ml')">Placement Pers. ML</button>
+  <button class="tab-btn"        data-tab="shct_mp"  onclick="switchTab('shct_mp')">Shortcuts MP</button>
+  <button class="tab-btn"        data-tab="modal_mp" onclick="switchTab('modal_mp')">Modal MP</button>
+  <button class="tab-btn"        data-tab="xsell_mp" onclick="switchTab('xsell_mp')">Xsell MP</button>
+  <button class="tab-btn"        data-tab="ms_hub_mp" onclick="switchTab('ms_hub_mp')">MS Hub Ben.</button>
+  <button class="tab-btn"        data-tab="qa_ml"    onclick="switchTab('qa_ml')">Quick Access ML</button>
+  <button class="tab-btn"        data-tab="pm_slider" onclick="switchTab('pm_slider')">Banner Delivery</button>
+  <button class="tab-btn"        data-tab="shct_widget" onclick="switchTab('shct_widget')">Shct vs Widget MP</button>
+</div>
+
+<div id="content">
+  <div id="tab-demanda"  class="tab-pane active"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-overview" class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-ms_ml"    class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-pp_ml"    class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-shct_mp"  class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-modal_mp" class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-xsell_mp" class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-ms_hub_mp" class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-qa_ml"    class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-pm_slider" class="tab-pane"><div class="loading">Cargando datos…</div></div>
+  <div id="tab-shct_widget" class="tab-pane"><div class="loading">Cargando datos…</div></div>
+</div>
+
+<script>
+'use strict';
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const GITHUB_RAW = 'https://raw.githubusercontent.com/extjuirigoy-stack/fd-proximity-dashboard/main/docs/data.json';
+
+const SPACE_CFG = {
+  ms_ml:    { label:'Main Slider ML',     color:'#e8a800', ctrTarget:0.0042, hasBrands:true,  stackedBrands:false, stackedDN:true,  ordersKey:'main_slider_ml', sessKey:'main_slider_ml', spaceLabel:'Orders MS',   showPrints:true  },
+  pp_ml:    { label:'Placement Pers. ML', color:'#9b59b6', ctrTarget:0.0035, hasBrands:true,  stackedBrands:false, stackedDN:false, ordersKey:'placement_ml',   sessKey:'Placement ML',   spaceLabel:'Orders PP',   showPrints:true,  noBrandOrders:true },
+  shct_mp:  { label:'Shortcuts MP',       color:'#4f6af5', ctrTarget:0.0040, hasBrands:true,  stackedBrands:true,  stackedDN:false, ordersKey:'shortcuts_mp',   sessKey:'Shortcut VSP MP',spaceLabel:'Orders SHCT', showPrints:true  },
+  modal_mp:  { label:'Modal MP',              color:'#27ae60', ctrTarget:0.0040, hasBrands:true,  stackedBrands:true,  stackedDN:false, ordersKey:'modales',   sessKey:'modales',         spaceLabel:'Orders MOD',      showPrints:false },
+  xsell_mp:  { label:'Xsell MP',             color:'#e8490a', ctrTarget:0.0040, hasBrands:true,  stackedBrands:true,  stackedDN:false, ordersKey:'xsells',    sessKey:'xsells',          spaceLabel:'Orders XS',       showPrints:true  },
+  ms_hub_mp: { label:'MS Hub Beneficios MP', color:'#1abc9c', ctrTarget:0.0040, hasBrands:true,  stackedBrands:true,  stackedDN:false, ordersKey:null,              sessKey:null,         spaceLabel:'',          showPrints:true  },
+  qa_ml:     { label:'Quick Access ML',      color:'#2c3e50', ctrTarget:0.0200, hasBrands:false, stackedBrands:false, stackedDN:false, ordersKey:'quick_access_ml', sessKey:'QA ML',      spaceLabel:'Orders QA', showPrints:true, ctrLabelColor:'#fff' },
+  shct_only: { label:'Shortcut',             color:'#4f6af5', ctrTarget:0.0040, hasBrands:true,  stackedBrands:true,  stackedDN:false, ordersKey:'shortcuts_mp',   sessKey:'Shortcut VSP MP',spaceLabel:'Orders SHCT', showPrints:true  },
+  widget_only:{ label:'Widget Benefits',     color:'#27ae60', ctrTarget:0.0040, hasBrands:true,  stackedBrands:true,  stackedDN:false, ordersKey:'shortcuts_mp',   sessKey:'Shortcut VSP MP',spaceLabel:'Orders SHCT', showPrints:true  },
+};
+const SPACE_ORDER = ['ms_ml','pp_ml','shct_mp','modal_mp','xsell_mp','ms_hub_mp','qa_ml'];
+
+const CHIP_COLOR = {
+  "Burger King":"#e8a800","McDonald\u00b4s":"#da020e","Grido":"#4f6af5","Mostaza":"#dc3c14",
+  "El Desembarco":"#2a9d8f","KFC":"#c8102e","Helados Daniel":"#8e44ad","Mariachi":"#e67e22",
+  "Antico Gelato E Caffe":"#27ae60","Sushi Pop":"#16a085","Kentucky":"#2980b9",
+  "Pizzería Popular":"#e74c3c","Dean & Dennys":"#7f8c8d","Dame 2":"#ff6b35",
+  "Caseratto":"#9b59b6","Monk\u00b4s Helados":"#5d6d7e","Bowies Burgers":"#d4830a",
+  "Faricci":"#8e44ad","Wonder Hamburguesería":"#1abc9c","Sucucho Burgers":"#c0392b",
+  "Americo Helados":"#3498db","Shami Shawarma.":"#f39c12","Lo de Jacinto":"#2ecc71",
+  "UNKNOWN":"#aaaaaa","DW":"#1a6b9a",
+  "Wendy's":"#c0392b","Burgertify":"#e67e22","Kioscos Express":"#2980b9",
+  "Lo de Jesus":"#52be80","Casa de la Milanesa":"#8e44ad","Lab Wraps":"#f39c12",
+  "El Mortero":"#b7950b","La Celeste":"#5dade2","Cajú":"#7dbb00",
+  "Shiitake Sushi":"#148f77","Subway":"#1d8348","D'Nola":"#6c3483",
+  "Mostaza":"#dc3c14",
+  "BK Combo Galáctico":"#e8a800","BK Burger JR":"#e8a800","BK Nuggets JR":"#e8a800",
+  "MC ClubHouse":"#da020e","MC ClubHouse Precio Doble":"#da020e",
+  "MC ClubHouse 30%":"#da020e","MC ClubHouse 40":"#da020e","MC ClubHouse 40%":"#da020e",
+  "KFC Big Push":"#c8102e","Mostaza Big Push":"#dc3c14",
+  "Delivery Week W3":"#95a5a6","Delivery Week W4":"#95a5a6","Delivery Week W5":"#95a5a6",
+  "Venezia Helados":"#a569bd"
+};
+const CHIP_LABEL = {
+  "Burger King":"BK","McDonald\u00b4s":"MC","Grido":"GRIDO","Mostaza":"MOSTAZA",
+  "El Desembarco":"DESEMBARCO","KFC":"KFC","Helados Daniel":"DANIEL","Mariachi":"MARIACHI",
+  "Antico Gelato E Caffe":"ANTICO","Sushi Pop":"SUSHIPOP","Kentucky":"KENTUCKY",
+  "Pizzería Popular":"POPULAR","Dean & Dennys":"D&D","Dame 2":"DAME2",
+  "Caseratto":"CASERATTO","Monk\u00b4s Helados":"MONKS","Bowies Burgers":"BOWIES",
+  "Faricci":"FARICCI","Wonder Hamburguesería":"WONDER","Sucucho Burgers":"SUCUCHO",
+  "Americo Helados":"AMERICO","Shami Shawarma.":"SHAMISHA","Lo de Jacinto":"JACINTO",
+  "UNKNOWN":"MS","DW":"DW",
+  "Wendy's":"WENDYS","Burgertify":"BTFY","Kioscos Express":"KIOSCOS",
+  "Lo de Jesus":"LOJESUS","Casa de la Milanesa":"CDM","Lab Wraps":"LABWRAPS",
+  "El Mortero":"MORTERO","La Celeste":"LACELESTE","Cajú":"CAJU",
+  "Shiitake Sushi":"SHIITAKE","Subway":"SUBWAY","D'Nola":"DNOLA",
+  "BK Combo Galáctico":"COMBO","BK Burger JR":"BURGER JR","BK Nuggets JR":"NUGGETS",
+  "MC ClubHouse":"CH","MC ClubHouse Precio Doble":"CH PD",
+  "MC ClubHouse 30%":"CH 30%","MC ClubHouse 40":"CH 40","MC ClubHouse 40%":"CH 40%",
+  "KFC Big Push":"KFC BP","Mostaza Big Push":"MOST BP",
+  "Delivery Week W3":"DW W3","Delivery Week W4":"DW W4","Delivery Week W5":"DW W5",
+  "Venezia Helados":"VENEZIA"
+};
+const SPACE_COLOR_DEM = {
+  'main_slider_ml':'#e8a800','Shortcut VSP MP':'#8fa5f8','Shortcut Home MP':'#4f6af5',
+  'Redireccion a ML':'#f5c800','modales':'#27ae60','xsells':'#e8490a',
+  'QA ML':'#b0b8c1','pushes':'#9b59b6','pom':'#3498db','ads':'#e67e22',
+  'shortcuts':'#f5c800','coachmark':'#16a085','direct not mapped':'#95a5a6'
+};
+const DOW_LABELS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+// Brands sin atribución directa en orders_brand — usan las órdenes del espacio
+const GENERIC_BRANDS = new Set([
+  'UNKNOWN', 'DW',
+  'Hamburguesa HS', 'Celebrity HS'
+]);
+function isGenericBrand(b) { return GENERIC_BRANDS.has(b); }
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let RAW = null;
+let activeTab = 'demanda';
+let rendered  = {};
+let granularity = 'day';
+const expandedBrands = {};
+let demSpaceFilter = 'all';
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+function fmtN(n) {
+  if (n == null) return '–';
+  return Number(n).toLocaleString('es-AR');
+}
+function fmtM(n) {
+  if (n == null) return '–';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(Math.round(n));
+}
+function fmtP(n) {
+  if (n == null) return '–';
+  return (n * 100).toFixed(2) + '%';
+}
+function deltaHtml(d) {
+  if (d == null) return '<span style="color:#aaa">–</span>';
+  const sign  = d >= 0 ? '+' : '';
+  const color = d >= 0 ? '#27ae60' : '#e74c3c';
+  return `<span style="color:${color}">${sign}${(d * 100).toFixed(1)}%</span>`;
+}
+function pct(a, b) { return (b && b !== 0) ? (a - b) / b : null; }
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function addDays(dateStr, n) {
+  const dt = new Date(dateStr + 'T00:00:00');
+  dt.setDate(dt.getDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+function fmtShort(d) {
+  if (!d) return '';
+  const [, m, day] = d.split('-');
+  return `${day}/${m}`;
+}
+function dateRange(start, end) {
+  const dates = [];
+  let d = start;
+  while (d <= end) { dates.push(d); d = addDays(d, 1); }
+  return dates;
+}
+function filterRange(arr, start, end) {
+  return (arr || []).filter(r => r.date >= start && r.date <= end);
+}
+function getMondayOf(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+function granKey(dateStr) {
+  if (granularity === 'week')  return getMondayOf(dateStr);
+  if (granularity === 'month') return dateStr.slice(0, 7);
+  return dateStr;
+}
+function granLabel(key) {
+  if (granularity === 'week') { const [,m,d]=key.split('-'); return `${d}/${m}`; }
+  if (granularity === 'month') {
+    const mths=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return mths[parseInt(key.slice(5,7))-1]+' \''+key.slice(2,4);
+  }
+  return key;
+}
+function granKeys(start, end) {
+  const seen=new Set(), keys=[];
+  dateRange(start,end).forEach(d=>{ const k=granKey(d); if(!seen.has(k)){seen.add(k);keys.push(k);} });
+  return keys;
+}
+function normalizeBrand(b) {
+  if (!b) return b;
+  return b.replace(/McDonald['\u2019\u00b4]s/g, "McDonald\u00b4s")
+          .replace(/Monk['\u2019\u00b4]s Helados/g, "Monk\u00b4s Helados");
+}
+function getStartEnd() {
+  return { start: document.getElementById('date-start').value, end: document.getElementById('date-end').value };
+}
+
+// ── Chip HTML ─────────────────────────────────────────────────────────────────
+function chipHtml(brand) {
+  const c = CHIP_COLOR[brand] || '#888';
+  const l = CHIP_LABEL[brand] || brand.slice(0, 6).toUpperCase();
+  return `<span class="chip" style="background:${c}">${l}</span>`;
+}
+
+// ── Data load ─────────────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(d => init(typeof d === 'string' ? JSON.parse(d) : d))
+        .withFailureHandler(showError)
+        .getJsonData();
+    } else {
+      const resp = await fetch(GITHUB_RAW);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      init(await resp.json());
+    }
+  } catch (e) { showError(e); }
+}
+
+function showError(e) {
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.innerHTML = `<div class="error-msg">Error al cargar datos: ${e}</div>`;
+  });
+}
+
+function init(data) {
+  RAW = data;
+  if (data.refreshed_at) {
+    document.getElementById('refreshed-at').textContent =
+      'Actualizado: ' + data.refreshed_at.replace('T', ' ');
+  }
+  // Detect max available date from data
+  let maxDate = '2026-01-01';
+  ['ms_ml', 'pp_ml', 'shct_mp', 'xsell_mp', 'modal_mp'].forEach(k => {
+    (data[k] || []).forEach(r => { if (r.date > maxDate) maxDate = r.date; });
+  });
+  const defEnd   = maxDate;
+  const defStart = addDays(maxDate, -6);
+  document.getElementById('date-start').value = defStart;
+  document.getElementById('date-end').value   = defEnd;
+  updateLwText();
+  rendered = {};
+  renderTab(activeTab);
+  rendered[activeTab] = true;
+}
+
+// ── Tab management ────────────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  activeTab = id;
+  if (RAW && !rendered[id]) { renderTab(id); rendered[id] = true; }
+}
+
+function applyFilters() {
+  const { start, end } = getStartEnd();
+  if (!start || !end || start > end) return;
+  rendered = {};
+  updateLwText();
+  renderTab(activeTab);
+  rendered[activeTab] = true;
+}
+function setGran(g) {
+  granularity = g;
+  const inp = document.querySelector(`input[name=gran][value="${g}"]`);
+  if (inp) inp.checked = true;
+  if (RAW) applyFilters();
+}
+function setDemSpaceFilter(f) {
+  demSpaceFilter = f;
+  document.querySelectorAll('.dem-sp-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  if (RAW) { const {start,end}=getStartEnd(); buildDemSpacesChart(start,end); }
+}
+
+function updateLwText() {
+  const { start, end } = getStartEnd();
+  if (!start || !end) return;
+  document.getElementById('lw-text').textContent =
+    `vs ${fmtShort(addDays(start, -7))} – ${fmtShort(addDays(end, -7))} (LW)`;
+}
+
+function renderTab(id) {
+  if      (id === 'demanda')     renderDemanda();
+  else if (id === 'overview')    renderOverview();
+  else if (id === 'pm_slider')   renderPmSlider();
+  else if (id === 'shct_widget') renderShctWidget();
+  else                           renderSpace(id);
+}
+
+// ── KPI card ──────────────────────────────────────────────────────────────────
+function kpiCard(label, twVal, lwVal, fmt) {
+  const d = pct(twVal, lwVal);
+  return `<div class="kpi-card">` +
+    `<div class="kpi-label">${label}</div>` +
+    `<div class="kpi-value">${fmt(twVal)}</div>` +
+    (d != null ? `<div class="kpi-delta">${deltaHtml(d)}</div>` : '') +
+    `<div class="kpi-lw">vs LW: ${fmt(lwVal)}</div>` +
+    `</div>`;
+}
+
+// ── Space tab ─────────────────────────────────────────────────────────────────
+function renderSpace(sid) {
+  if (!RAW) return;
+  const cfg  = SPACE_CFG[sid];
+  const { start, end } = getStartEnd();
+  const lwS  = addDays(start, -7);
+  const lwE  = addDays(end,   -7);
+  const sd   = RAW[sid] || [];
+  const twD  = filterRange(sd, start, end);
+  const lwD  = filterRange(sd, lwS, lwE);
+
+  // Prints / taps
+  let twP = 0, twT = 0, lwP = 0, lwT = 0;
+  if (sid === 'ms_ml') {
+    twD.forEach(r => { twP += (r.dia_p||0)+(r.noche_p||0); twT += (r.dia_t||0)+(r.noche_t||0); });
+    lwD.forEach(r => { lwP += (r.dia_p||0)+(r.noche_p||0); lwT += (r.dia_t||0)+(r.noche_t||0); });
+  } else {
+    twD.forEach(r => { twP += r.prints||0; twT += r.taps||0; });
+    lwD.forEach(r => { lwP += r.prints||0; lwT += r.taps||0; });
+  }
+  const twCTR = twP ? twT / twP : 0;
+  const lwCTR = lwP ? lwT / lwP : 0;
+
+  // Orders (space level)
+  let twOrd = 0, lwOrd = 0;
+  if (cfg.ordersKey) {
+    const os = RAW.orders_space || [];
+    filterRange(os.filter(r => r.space === cfg.ordersKey), start, end).forEach(r => { twOrd += r.orders||0; });
+    filterRange(os.filter(r => r.space === cfg.ordersKey), lwS,   lwE).forEach(r => { lwOrd += r.orders||0; });
+  }
+
+  // Sessions
+  let twSess = 0, lwSess = 0;
+  if (cfg.sessKey) {
+    const ss = RAW.sessions_space || [];
+    ss.filter(r => r.space === cfg.sessKey).forEach(r => {
+      if (r.date >= start && r.date <= end) twSess += r.sessions||0;
+      if (r.date >= lwS   && r.date <= lwE) lwSess += r.sessions||0;
+    });
+  }
+
+  const el = document.getElementById('tab-' + sid);
+  el.innerHTML =
+    `<div class="page-title" style="color:${cfg.color}">${cfg.label}</div>` +
+    `<div class="kpi-row">` +
+      kpiCard('Prints', twP, lwP, fmtM) +
+      kpiCard('CTR', twCTR, lwCTR, fmtP) +
+      (cfg.ordersKey ? kpiCard('Órdenes', twOrd, lwOrd, fmtN) : '') +
+      (cfg.sessKey   ? kpiCard('Sesiones', twSess, lwSess, fmtN) : '') +
+    `</div>` +
+    `<div class="chart-wrap"><div id="chart-${sid}" style="height:300px"></div></div>` +
+    `<div class="table-wrap" id="tbl-${sid}"></div>` +
+    (cfg.hasBrands ? `<div id="classify-${sid}"></div>` : '');
+
+  buildPrintsCTRChart(sid, twD, cfg, start, end);
+
+  if (cfg.hasBrands) {
+    document.getElementById('tbl-' + sid).innerHTML = buildBrandTable(sid, twD, start, end, lwS, lwE);
+    document.getElementById('classify-' + sid).innerHTML = buildClassifySection(sid, twD, start, end);
+  } else if (cfg.ordersKey) {
+    document.getElementById('tbl-' + sid).innerHTML = buildSpaceTable(sid, start, end, lwS, lwE);
+  }
+}
+
+
+// ── Prints + CTR chart ────────────────────────────────────────────────────────
+function buildPrintsCTRChart(sid, twD, cfg, start, end) {
+  const keys  = granKeys(start, end);
+  const isDay = granularity === 'day';
+  const xlabs = isDay ? keys : keys.map(granLabel);
+  const xaxisCfg = isDay
+    ? { tickformat:'%d/%m', type:'date', tickangle:-45, dtick:'D1', automargin:true }
+    : { type:'category', tickangle:-45, automargin:true };
+  const traces = [];
+  const C_DIA   = 'rgba(245,200,0,0.85)';
+  const C_NOCHE = 'rgba(100,100,120,0.65)';
+  let maxCtr = cfg.ctrTarget * 1.5;
+
+  if (sid === 'ms_ml') {
+    const diaByK={}, nctByK={}, tapByK={};
+    twD.forEach(r => {
+      const k=granKey(r.date);
+      diaByK[k]=(diaByK[k]||0)+(r.dia_p||0);
+      nctByK[k]=(nctByK[k]||0)+(r.noche_p||0);
+      tapByK[k]=(tapByK[k]||0)+(r.dia_t||0)+(r.noche_t||0);
+    });
+    const totals = keys.map(k=>(diaByK[k]||0)+(nctByK[k]||0));
+    traces.push({ x:xlabs, y:keys.map(k=>diaByK[k]||0), name:'DÍA', type:'bar',
+      marker:{color:C_DIA, cornerradius:4},
+      hovertemplate:'%{y:,.0f}<extra>DÍA</extra>' });
+    traces.push({ x:xlabs, y:keys.map(k=>nctByK[k]||0), name:'NOCHE', type:'bar',
+      marker:{color:C_NOCHE, cornerradius:4},
+      text:totals.map(t=>t>0?fmtM(t):''), textposition:'outside', cliponaxis:false,
+      hovertemplate:'%{y:,.0f}<extra>NOCHE</extra>' });
+    const ctrLine=keys.map(k=>{ const p=(diaByK[k]||0)+(nctByK[k]||0),t=tapByK[k]||0; return p?t/p:null; });
+    const ctrVals=ctrLine.filter(v=>v!=null);
+    maxCtr=ctrVals.length ? Math.max(...ctrVals)*1.5 : cfg.ctrTarget*2;
+    traces.push({ x:xlabs, y:ctrLine, name:'CTR', type:'scatter',
+      mode:'lines+markers+text', yaxis:'y2',
+      line:{color:'#222',width:2}, marker:{color:'#222',size:4},
+      text:ctrLine.map(v=>v!=null?(v*100).toFixed(2).replace('.',',')+'%':''), textposition:'top center',
+      textfont:{color:cfg.ctrLabelColor||'#222', size:10},
+      hovertemplate:'%{y:.2%}<extra>CTR</extra>' });
+
+  } else {
+    // Single bar per bucket (total prints), space color — works for stackedBrands and default
+    const pByK={}, tByK={};
+    twD.forEach(r => {
+      const k=granKey(r.date);
+      pByK[k]=(pByK[k]||0)+(r.prints||0);
+      tByK[k]=(tByK[k]||0)+(r.taps||0);
+    });
+    traces.push({ x:xlabs, y:keys.map(k=>pByK[k]||0), name:'Prints', type:'bar',
+      marker:{color:cfg.color, cornerradius:4},
+      text:keys.map(k=>pByK[k]>0?fmtM(pByK[k]):''), textposition:'outside', cliponaxis:false,
+      hovertemplate:'%{y:,.0f}<extra>Prints</extra>' });
+    const ctrLine=keys.map(k=>{ const p=pByK[k]||0,t=tByK[k]||0; return p?t/p:null; });
+    const ctrVals=ctrLine.filter(v=>v!=null);
+    maxCtr=ctrVals.length ? Math.max(...ctrVals)*1.5 : cfg.ctrTarget*2;
+    traces.push({ x:xlabs, y:ctrLine, name:'CTR', type:'scatter',
+      mode:'lines+markers+text', yaxis:'y2',
+      line:{color:'#222',width:2}, marker:{color:'#222',size:4},
+      text:ctrLine.map(v=>v!=null?(v*100).toFixed(2).replace('.',',')+'%':''), textposition:'top center',
+      textfont:{color:cfg.ctrLabelColor||'#222', size:10},
+      hovertemplate:'%{y:.2%}<extra>CTR</extra>' });
+  }
+
+  Plotly.newPlot('chart-' + sid, traces, {
+    barmode: cfg.stackedDN ? 'stack' : 'group',
+    height: 300, margin:{t:30,r:60,b:70,l:50},
+    paper_bgcolor:'#fff', plot_bgcolor:'#fff',
+    xaxis: xaxisCfg,
+    yaxis:{ tickformat:'~s', title:'Prints' },
+    yaxis2:{ overlaying:'y', side:'right', tickformat:'.2%', title:'CTR',
+      range:[0, maxCtr], showgrid:false },
+    legend:{ orientation:'h', y:-0.35 },
+    showlegend: cfg.stackedDN
+  }, { responsive:true, displayModeBar:false });
+}
+
+// ── Brand orders table ────────────────────────────────────────────────────────
+function toggleBrand(sid, brand) {
+  if (!expandedBrands[sid]) expandedBrands[sid] = new Set();
+  if (expandedBrands[sid].has(brand)) expandedBrands[sid].delete(brand);
+  else expandedBrands[sid].add(brand);
+  const { start, end } = getStartEnd();
+  const lwS = addDays(start,-7), lwE = addDays(end,-7);
+  const twD = filterRange(RAW[sid]||[], start, end);
+  document.getElementById('tbl-' + sid).innerHTML = buildBrandTable(sid, twD, start, end, lwS, lwE);
+}
+
+function showPmSliderContents(brand, evt) {
+  evt.stopPropagation();
+  const norm = normalizeBrand(brand);
+  const ids = [...new Set((RAW.pm_sl_contents||[])
+    .filter(r => normalizeBrand(r.brand) === norm)
+    .map(r => r.content_id))].sort();
+
+  let pop = document.getElementById('pm-content-pop');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'pm-content-pop';
+    pop.style.cssText = 'position:fixed;background:#fff;border:1px solid #ddd;border-radius:8px;padding:12px 16px;box-shadow:0 4px 16px rgba(0,0,0,.18);z-index:1000;max-width:400px;font-size:12px;display:none';
+    document.body.appendChild(pop);
+    document.addEventListener('click', () => { pop.style.display='none'; });
+  }
+
+  pop.innerHTML =
+    `<div style="font-weight:800;margin-bottom:8px;color:#1a1a2e">${brand}</div>` +
+    (ids.length
+      ? ids.map(id=>`<div style="color:#444;padding:2px 0;word-break:break-all;font-family:monospace">${id}</div>`).join('')
+      : '<div style="color:#aaa">Sin content_ids en el período.</div>');
+
+  const r = evt.target.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth-420) + 'px';
+  pop.style.top  = (r.bottom + 6) + 'px';
+  pop.style.display = 'block';
+}
+
+function togglePmSlider(brand) {
+  if (!expandedBrands['pm_slider']) expandedBrands['pm_slider'] = new Set();
+  if (expandedBrands['pm_slider'].has(brand)) expandedBrands['pm_slider'].delete(brand);
+  else expandedBrands['pm_slider'].add(brand);
+  const { start, end } = getStartEnd();
+  const mlD = filterRange(RAW.pm_sl_ml||[], start, end);
+  const mpD = filterRange(RAW.pm_sl_mp||[], start, end);
+  document.getElementById('tbl-pm-slider').innerHTML = buildPmSliderTable(mlD, mpD);
+}
+
+function buildBrandTable(sid, twD, start, end, lwS, lwE) {
+  if (!twD.length) return '<p style="color:#888;padding:8px">Sin datos en el período.</p>';
+  const cfg      = SPACE_CFG[sid];
+  const expanded = expandedBrands[sid] || new Set();
+
+  // Normalize brand names in prints data
+  const normTwD = twD.map(r => ({ ...r, brand: normalizeBrand(r.brand) }));
+
+  // Brand totals for sort order
+  const bPrints = {};
+  if (sid === 'ms_ml') {
+    normTwD.forEach(r => { bPrints[r.brand]=(bPrints[r.brand]||0)+(r.dia_p||0)+(r.noche_p||0); });
+  } else {
+    normTwD.forEach(r => { bPrints[r.brand]=(bPrints[r.brand]||0)+(r.prints||0); });
+  }
+  // Active dates per brand
+  const bDates = {};
+  normTwD.forEach(r => {
+    if (!bDates[r.brand]) bDates[r.brand] = new Set();
+    bDates[r.brand].add(r.date);
+  });
+  const brands = Object.keys(bDates).sort((a,b) => {
+    const da = [...bDates[a]].sort()[0] || '';
+    const db = [...bDates[b]].sort()[0] || '';
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+
+  // Per-brand/date prints & taps
+  const bPrintsByD={}, bTapsByD={};
+  if (sid === 'ms_ml') {
+    normTwD.forEach(r => {
+      if (!bPrintsByD[r.brand]) bPrintsByD[r.brand]={};
+      if (!bTapsByD[r.brand])   bTapsByD[r.brand]={};
+      bPrintsByD[r.brand][r.date]=(bPrintsByD[r.brand][r.date]||0)+(r.dia_p||0)+(r.noche_p||0);
+      bTapsByD[r.brand][r.date]=(bTapsByD[r.brand][r.date]||0)+(r.dia_t||0)+(r.noche_t||0);
+    });
+  } else {
+    normTwD.forEach(r => {
+      if (!bPrintsByD[r.brand]) bPrintsByD[r.brand]={};
+      if (!bTapsByD[r.brand])   bTapsByD[r.brand]={};
+      bPrintsByD[r.brand][r.date]=(bPrintsByD[r.brand][r.date]||0)+(r.prints||0);
+      bTapsByD[r.brand][r.date]=(bTapsByD[r.brand][r.date]||0)+(r.taps||0);
+    });
+  }
+
+  // Orders by brand TW / LW (normalized, indexed by [brand][date])
+  const ob = RAW.orders_brand || [];
+  const obTW={}, obLW={};
+  filterRange(ob, start, end).forEach(r => {
+    const b=normalizeBrand(r.brand);
+    if (!obTW[b]) obTW[b]={};
+    obTW[b][r.date]=(obTW[b][r.date]||0)+(r.orders||0);
+  });
+  filterRange(ob, lwS, lwE).forEach(r => {
+    const b=normalizeBrand(r.brand);
+    if (!obLW[b]) obLW[b]={};
+    obLW[b][r.date]=(obLW[b][r.date]||0)+(r.orders||0);
+  });
+
+  // Space orders by date (TW and LW)
+  const soByDate={}, soByDateLW={};
+  if (cfg.ordersKey) {
+    filterRange((RAW.orders_space||[]).filter(r=>r.space===cfg.ordersKey),start,end)
+      .forEach(r=>{soByDate[r.date]=r.orders||0;});
+    filterRange((RAW.orders_space||[]).filter(r=>r.space===cfg.ordersKey),lwS,lwE)
+      .forEach(r=>{soByDateLW[r.date]=r.orders||0;});
+  }
+
+  // Build column specs
+  const cols = [];
+  brands.forEach(b => {
+    const dates = [...(bDates[b]||new Set())].sort();
+    if (expanded.has(b) && dates.length > 1) {
+      const safeB = b.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      dates.forEach((dt,i) => {
+        const collapseArrow = i===0
+          ? `<span onclick="toggleBrand('${sid}','${safeB}');event.stopPropagation()" style="cursor:pointer;margin-left:4px;font-size:10px">▲</span>`
+          : '';
+        cols.push({ brand:b, date:dt, label:`${chipHtml(b)} <span style="font-size:10px">${fmtShort(dt)}</span>${collapseArrow}` });
+      });
+    } else {
+      const canExpand = dates.length > 1;
+      const arrow = canExpand
+        ? `<span onclick="toggleBrand('${sid}','${b.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');event.stopPropagation()" style="cursor:pointer;margin-left:4px;font-size:10px">${expanded.has(b)?'▲':'▼'}</span>`
+        : '';
+      const dateLabel = dates.length > 1
+        ? `<div style="font-size:10px;color:#aaa;margin-top:2px">${fmtShort(dates[0])} – ${fmtShort(dates[dates.length-1])}</div>`
+        : `<div style="font-size:10px;color:#aaa;margin-top:2px">${fmtShort(dates[0])}</div>`;
+      cols.push({ brand:b, date:null, label:`${chipHtml(b)}${arrow}${dateLabel}` });
+    }
+  });
+
+  // Value helpers
+  function colPrints(col) {
+    if (col.date) return bPrintsByD[col.brand]?.[col.date]||0;
+    return Object.values(bPrintsByD[col.brand]||{}).reduce((s,v)=>s+v,0);
+  }
+  function colTaps(col) {
+    if (col.date) return bTapsByD[col.brand]?.[col.date]||0;
+    return Object.values(bTapsByD[col.brand]||{}).reduce((s,v)=>s+v,0);
+  }
+  function colOrdersTW(col) {
+    if (isGenericBrand(col.brand)) {
+      if (col.date) return soByDate[col.date]||0;
+      let s=0; (bDates[col.brand]||new Set()).forEach(dt=>{s+=soByDate[dt]||0;}); return s;
+    }
+    if (col.date) return obTW[col.brand]?.[col.date]||0;
+    return Object.values(obTW[col.brand]||{}).reduce((s,v)=>s+v,0);
+  }
+  function colOrdersLW(col) {
+    if (isGenericBrand(col.brand)) {
+      if (col.date) return soByDateLW[addDays(col.date,-7)]||0;
+      let s=0; (bDates[col.brand]||new Set()).forEach(dt=>{s+=soByDateLW[addDays(dt,-7)]||0;}); return s;
+    }
+    if (col.date) return obLW[col.brand]?.[addDays(col.date,-7)]||0;
+    return Object.values(obLW[col.brand]||{}).reduce((s,v)=>s+v,0);
+  }
+  function colSpaceOrders(col) {
+    if (col.date) return soByDate[col.date]||0;
+    let sum=0;
+    (bDates[col.brand]||new Set()).forEach(dt=>{sum+=soByDate[dt]||0;});
+    return sum;
+  }
+
+  // Header
+  let hdr = '<tr><th>Métrica</th>';
+  cols.forEach(c=>{ hdr+=`<th>${c.label}</th>`; });
+  hdr += '</tr>';
+
+  const rows = [];
+
+  if (cfg.showPrints) {
+    let rP='<tr><td>Prints</td>';
+    cols.forEach(c=>{rP+=`<td>${fmtM(colPrints(c))}</td>`;});
+    rows.push(rP+'</tr>');
+
+    let rC='<tr><td>CTR</td>';
+    cols.forEach(c=>{const p=colPrints(c),t=colTaps(c); rC+=`<td>${p?fmtP(t/p):'–'}</td>`;});
+    rows.push(rC+'</tr>');
+  }
+
+  // Orders space right after CTR (no green)
+  if (cfg.ordersKey) {
+    let rSO=`<tr class="row-space-orders"><td>${cfg.spaceLabel}</td>`;
+    cols.forEach(c=>{rSO+=`<td>${fmtN(colSpaceOrders(c))}</td>`;});
+    rows.push(rSO+'</tr>');
+  }
+
+  if (cfg.ordersKey && !cfg.noBrandOrders) {
+    let rTW='<tr><td>Órdenes TB</td>';
+    cols.forEach(c=>{rTW+=`<td>${fmtN(colOrdersTW(c))}</td>`;});
+    rows.push(rTW+'</tr>');
+
+    let rLW='<tr><td>Órdenes LW</td>';
+    cols.forEach(c=>{rLW+=`<td>${fmtN(colOrdersLW(c))}</td>`;});
+    rows.push(rLW+'</tr>');
+
+    let rUpl='<tr><td>Uplift</td>';
+    cols.forEach(c=>{rUpl+=`<td>${deltaHtml(pct(colOrdersTW(c),colOrdersLW(c)))}</td>`;});
+    rows.push(rUpl+'</tr>');
+  }
+
+  return `<div class="section-title">Órdenes por marca</div>` +
+    `<table><thead>${hdr}</thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function buildSpaceTable(sid, start, end, lwS, lwE) {
+  const cfg  = SPACE_CFG[sid];
+  const os   = RAW.orders_space || [];
+  const twOrd = filterRange(os.filter(r => r.space === cfg.ordersKey), start, end).reduce((s,r) => s+(r.orders||0), 0);
+  const lwOrd = filterRange(os.filter(r => r.space === cfg.ordersKey), lwS, lwE).reduce((s,r) => s+(r.orders||0), 0);
+  const d = pct(twOrd, lwOrd);
+  return `<div class="section-title">Órdenes totales del espacio</div>` +
+    `<table><thead><tr><th>Período</th><th>Órdenes</th><th>vs LW</th></tr></thead>` +
+    `<tbody>` +
+    `<tr><td>This week</td><td>${fmtN(twOrd)}</td><td></td></tr>` +
+    `<tr><td>Last week</td><td>${fmtN(lwOrd)}</td><td>${deltaHtml(d)}</td></tr>` +
+    `</tbody></table>`;
+}
+
+// ── Overview tab ──────────────────────────────────────────────────────────────
+function renderOverview() {
+  if (!RAW) return;
+  const { start, end } = getStartEnd();
+  const lwS = addDays(start, -7), lwE = addDays(end, -7);
+  const el  = document.getElementById('tab-overview');
+
+  const OV_GROUPS = [
+    { cols: 3, spaces: ['ms_ml', 'pp_ml', 'qa_ml'] },
+    { cols: 4, spaces: ['shct_mp', 'modal_mp', 'xsell_mp', 'ms_hub_mp'] },
+  ];
+
+  let cardsHtml = '';
+  OV_GROUPS.forEach(group => {
+    cardsHtml += `<div class="ov-cards" style="grid-template-columns:repeat(${group.cols},1fr)">`;
+    group.spaces.forEach(sid => {
+    const cfg = SPACE_CFG[sid];
+    const sd  = RAW[sid] || [];
+    const twD = filterRange(sd, start, end);
+    const lwD = filterRange(sd, lwS, lwE);
+
+    let twP=0,twT=0,lwP=0,lwT=0;
+    if (sid === 'ms_ml') {
+      twD.forEach(r=>{twP+=(r.dia_p||0)+(r.noche_p||0);twT+=(r.dia_t||0)+(r.noche_t||0);});
+      lwD.forEach(r=>{lwP+=(r.dia_p||0)+(r.noche_p||0);lwT+=(r.dia_t||0)+(r.noche_t||0);});
+    } else {
+      twD.forEach(r=>{twP+=r.prints||0;twT+=r.taps||0;});
+      lwD.forEach(r=>{lwP+=r.prints||0;lwT+=r.taps||0;});
+    }
+    const twCTR=twP?twT/twP:0, lwCTR=lwP?lwT/lwP:0;
+
+    let twOrd=0,lwOrd=0,twSess=0,lwSess=0;
+    if (cfg.ordersKey) {
+      const os=RAW.orders_space||[];
+      filterRange(os.filter(r=>r.space===cfg.ordersKey),start,end).forEach(r=>{twOrd+=r.orders||0;});
+      filterRange(os.filter(r=>r.space===cfg.ordersKey),lwS,lwE).forEach(r=>{lwOrd+=r.orders||0;});
+    }
+    if (cfg.sessKey) {
+      (RAW.sessions_space||[]).filter(r=>r.space===cfg.sessKey).forEach(r=>{
+        if(r.date>=start&&r.date<=end) twSess+=r.sessions||0;
+        if(r.date>=lwS&&r.date<=lwE)   lwSess+=r.sessions||0;
+      });
+    }
+
+    const dP=pct(twP,lwP), dC=pct(twCTR,lwCTR), dO=pct(twOrd,lwOrd), dS=pct(twSess,lwSess);
+
+    cardsHtml +=
+      `<div class="ov-card" style="border-top-color:${cfg.color}">` +
+      `<h3>${cfg.label}</h3>` +
+      `<div class="ov-metrics">` +
+      ovMetric('Prints',   fmtM(twP),   dP) +
+      ovMetric('CTR',      fmtP(twCTR), dC) +
+      ovMetric('Órdenes',  cfg.ordersKey ? fmtN(twOrd)  : '–', cfg.ordersKey ? dO : null) +
+      ovMetric('Sesiones', cfg.sessKey   ? fmtN(twSess) : '–', cfg.sessKey   ? dS : null) +
+      `</div></div>`;
+    });
+    cardsHtml += '</div>';
+  });
+
+  el.innerHTML =
+    `<div class="page-title">Overview</div>` +
+    cardsHtml +
+    `<div class="section-title">Evolución de prints por espacio</div>` +
+    `<div class="chart-wrap"><div id="chart-ov-evo" style="height:300px"></div></div>` +
+    `<div class="pies-row">` +
+    `<div class="pie-wrap"><h3>Share Sesiones</h3><div id="pie-sess" style="height:260px"></div></div>` +
+    `<div class="pie-wrap"><h3>Share Prints</h3><div id="pie-prints" style="height:260px"></div></div>` +
+    `<div class="pie-wrap"><h3>Share Órdenes</h3><div id="pie-ord" style="height:260px"></div></div>` +
+    `</div>`;
+
+  buildOvEvo(start, end);
+  buildOvPies(start, end);
+}
+
+function ovMetric(label, value, d) {
+  return `<div class="ov-metric">` +
+    `<div class="ov-metric-label">${label}</div>` +
+    `<div class="ov-metric-value">${value}</div>` +
+    `<div class="ov-metric-badge">${d != null ? deltaHtml(d) : '&nbsp;'}</div>` +
+    `</div>`;
+}
+
+function buildOvEvo(start, end) {
+  const keys  = granKeys(start, end);
+  const isDay = granularity === 'day';
+  const xlabs = isDay ? keys : keys.map(granLabel);
+  const xaxisCfg = isDay
+    ? { tickformat:'%d/%m', type:'date', tickangle:-45, dtick:'D1', automargin:true }
+    : { type:'category', tickangle:-45, automargin:true };
+
+  const totByK = {};
+  const byKPerSid = {};
+  SPACE_ORDER.forEach(sid => {
+    const sd = filterRange(RAW[sid]||[], start, end);
+    const byK = {};
+    if (sid==='ms_ml') {
+      sd.forEach(r=>{ const k=granKey(r.date); byK[k]=(byK[k]||0)+(r.dia_p||0)+(r.noche_p||0); });
+    } else {
+      sd.forEach(r=>{ const k=granKey(r.date); byK[k]=(byK[k]||0)+(r.prints||0); });
+    }
+    keys.forEach(k=>{ totByK[k]=(totByK[k]||0)+(byK[k]||0); });
+    byKPerSid[sid] = byK;
+  });
+  const sortedSpaces = [...SPACE_ORDER].sort((a, b) => {
+    const totA = keys.reduce((s,k) => s+(byKPerSid[a][k]||0), 0);
+    const totB = keys.reduce((s,k) => s+(byKPerSid[b][k]||0), 0);
+    return totB - totA;
+  });
+  const traces = sortedSpaces.map(sid => {
+    const cfg  = SPACE_CFG[sid];
+    const yVals = keys.map(k=>byKPerSid[sid][k]||0);
+    return {
+      x:xlabs, y:yVals, name:cfg.label, type:'bar',
+      marker:{color:cfg.color, cornerradius:4},
+      text: yVals.map((v,i)=>{ const t=totByK[keys[i]]||0; const pct=t>0?v/t:0; return pct>=0.07?(pct*100).toFixed(0)+'%':''; }),
+      textposition:'inside', insidetextanchor:'middle',
+      hovertemplate:'%{y:,.0f}<extra>'+cfg.label+'</extra>'
+    };
+  });
+
+  Plotly.newPlot('chart-ov-evo', traces, {
+    barmode:'stack', height:300, margin:{t:30,r:20,b:70,l:50},
+    paper_bgcolor:'#fff', plot_bgcolor:'#fff',
+    xaxis: xaxisCfg,
+    yaxis:{tickformat:'~s'},
+    legend:{orientation:'h',y:-0.3}
+  }, {responsive:true, displayModeBar:false});
+}
+
+function buildOvPies(start, end) {
+  const labels = SPACE_ORDER.map(sid => SPACE_CFG[sid].label);
+  const colors = SPACE_ORDER.map(sid => SPACE_CFG[sid].color);
+
+  const sessVals = SPACE_ORDER.map(sid => {
+    const k = SPACE_CFG[sid].sessKey;
+    if (!k) return 0;
+    return (RAW.sessions_space||[])
+      .filter(r=>r.space===k&&r.date>=start&&r.date<=end)
+      .reduce((s,r)=>s+(r.sessions||0),0);
+  });
+  const printVals = SPACE_ORDER.map(sid => {
+    const sd = filterRange(RAW[sid]||[], start, end);
+    if (sid==='ms_ml') return sd.reduce((s,r)=>s+(r.dia_p||0)+(r.noche_p||0),0);
+    return sd.reduce((s,r)=>s+(r.prints||0),0);
+  });
+  const ordVals = SPACE_ORDER.map(sid => {
+    const k = SPACE_CFG[sid].ordersKey;
+    if (!k) return 0;
+    return filterRange((RAW.orders_space||[]).filter(r=>r.space===k), start, end)
+      .reduce((s,r)=>s+(r.orders||0),0);
+  });
+
+  const mkPie = (vals) => [{
+    values:vals, labels, type:'pie', hole:0.4,
+    marker:{colors}, domain:{x:[0,0.55]},
+    textinfo:'percent', textposition:'inside',
+    hovertemplate:'%{label}<br>%{value:,}<extra></extra>'
+  }];
+  const layout = { height:260, margin:{t:10,r:10,b:10,l:10},
+    paper_bgcolor:'#fff', showlegend:true, legend:{orientation:'v',x:0.58,y:0.5,yanchor:'middle'} };
+  const cfg = {responsive:true, displayModeBar:false};
+
+  Plotly.newPlot('pie-sess',   mkPie(sessVals),  layout, cfg);
+  Plotly.newPlot('pie-prints', mkPie(printVals), layout, cfg);
+  Plotly.newPlot('pie-ord',    mkPie(ordVals),   layout, cfg);
+}
+
+// ── Demanda tab ───────────────────────────────────────────────────────────────
+function renderDemanda() {
+  if (!RAW) return;
+  const { start, end } = getStartEnd();
+  const lwS = addDays(start,-7), lwE = addDays(end,-7);
+  const el  = document.getElementById('tab-demanda');
+
+  el.innerHTML =
+    `<div class="page-title">Demanda</div>` +
+    `<div class="section-title">Evolución de sesiones ML vs MP</div>` +
+    `<div class="chart-wrap"><div id="chart-dem-sessions" style="height:280px"></div></div>` +
+    `<div class="section-title" style="display:flex;align-items:center;gap:12px">Sesiones por espacio` +
+    `<div class="gran-toggle" style="font-weight:normal">` +
+    `<button class="gran-btn dem-sp-btn ${demSpaceFilter==='all'?'active':''}" data-f="all" onclick="setDemSpaceFilter('all')">Ambos</button>` +
+    `<button class="gran-btn dem-sp-btn ${demSpaceFilter==='ml'?'active':''}" data-f="ml"  onclick="setDemSpaceFilter('ml')">ML</button>` +
+    `<button class="gran-btn dem-sp-btn ${demSpaceFilter==='mp'?'active':''}" data-f="mp"  onclick="setDemSpaceFilter('mp')">MP</button>` +
+    `</div></div>` +
+    `<div class="chart-wrap"><div id="chart-dem-spaces" style="height:300px"></div></div>` +
+    `<div class="section-title">Deepdive por canal</div>` +
+    `<div class="table-wrap">${buildDemDeepdive(start,end,lwS,lwE)}</div>` +
+    `<div class="section-title">Heatmap de categorías — órdenes promedio por día de semana</div>` +
+    `<div class="table-wrap heatmap-wrap">${buildDemHeatmap(start,end)}</div>`;
+
+  buildDemSessionsChart(start, end);
+  buildDemSpacesChart(start, end);
+}
+
+function buildDemSessionsChart(start, end) {
+  const keys  = granKeys(start, end);
+  const isDay = granularity === 'day';
+  const xlabs = isDay ? keys : keys.map(granLabel);
+  const xaxisCfg = isDay
+    ? { tickformat:'%d/%m', type:'date', tickangle:-45, dtick:'D1', automargin:true }
+    : { type:'category', tickangle:-45, automargin:true };
+
+  const ss    = RAW.sessions_space || [];
+  const mlByK={}, mpByK={};
+  ss.filter(r=>r.date>=start&&r.date<=end).forEach(r => {
+    const k=granKey(r.date);
+    if (r.app==='ml') mlByK[k]=(mlByK[k]||0)+(r.sessions||0);
+    else              mpByK[k]=(mpByK[k]||0)+(r.sessions||0);
+  });
+  const mlY=keys.map(k=>mlByK[k]||0), mpY=keys.map(k=>mpByK[k]||0);
+  const totals=keys.map((_,i)=>mlY[i]+mpY[i]);
+
+  Plotly.newPlot('chart-dem-sessions', [
+    { x:xlabs, y:mlY, name:'ML', type:'bar', marker:{color:'#f5c800', cornerradius:4},
+      text:totals.map((t,i)=>t>0?(mlY[i]/t*100).toFixed(0)+'%':''),
+      textposition:'inside', insidetextanchor:'middle',
+      hovertemplate:'%{y:,.0f}<extra>ML</extra>' },
+    { x:xlabs, y:mpY, name:'MP', type:'bar', marker:{color:'#009ee3', cornerradius:4},
+      text:totals.map((t,i)=>t>0?(mpY[i]/t*100).toFixed(0)+'%':''),
+      textposition:'inside', insidetextanchor:'middle',
+      hovertemplate:'%{y:,.0f}<extra>MP</extra>' }
+  ], {
+    barmode:'stack', height:280, margin:{t:10,r:20,b:70,l:50},
+    paper_bgcolor:'#fff', plot_bgcolor:'#fff',
+    xaxis: xaxisCfg,
+    yaxis:{tickformat:'~s',title:'Sesiones'},
+    legend:{orientation:'h',y:-0.3}
+  }, {responsive:true, displayModeBar:false});
+}
+
+function buildDemSpacesChart(start, end) {
+  const keys  = granKeys(start, end);
+  const isDay = granularity === 'day';
+  const xlabs = isDay ? keys : keys.map(granLabel);
+  const xaxisCfg = isDay
+    ? { tickformat:'%d/%m', type:'date', tickangle:-45, dtick:'D1', automargin:true }
+    : { type:'category', tickangle:-45, automargin:true };
+
+  const ss = RAW.sessions_space || [];
+  const filtered = ss.filter(r => r.date>=start && r.date<=end &&
+    (demSpaceFilter==='all' || r.app===demSpaceFilter));
+
+  // Top 5 spaces by total sessions
+  const totals = {};
+  filtered.forEach(r => { totals[r.space]=(totals[r.space]||0)+(r.sessions||0); });
+  const topSpaces = Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
+
+  // Aggregate by granKey
+  const bySpaceKey = {};
+  const otrosByKey = {};
+  filtered.forEach(r => {
+    const k = granKey(r.date);
+    if (topSpaces.includes(r.space)) {
+      if (!bySpaceKey[r.space]) bySpaceKey[r.space]={};
+      bySpaceKey[r.space][k]=(bySpaceKey[r.space][k]||0)+(r.sessions||0);
+    } else {
+      otrosByKey[k]=(otrosByKey[k]||0)+(r.sessions||0);
+    }
+  });
+
+  // Total per bucket (for % calculation)
+  const totByK = {};
+  filtered.forEach(r=>{ const k=granKey(r.date); totByK[k]=(totByK[k]||0)+(r.sessions||0); });
+
+  const traces = topSpaces.map(sp => {
+    const yVals = keys.map(k=>(bySpaceKey[sp]||{})[k]||0);
+    return {
+      x:xlabs, y:yVals, name:sp,
+      type:'bar', marker:{color:SPACE_COLOR_DEM[sp]||'#95a5a6', cornerradius:4},
+      text: yVals.map((v,i)=>{ const t=totByK[keys[i]]||0; const pct=t>0?v/t:0; return pct>=0.07?(pct*100).toFixed(0)+'%':''; }),
+      textposition:'inside', insidetextanchor:'middle',
+      hovertemplate:'%{y:,.0f}<extra>'+sp+'</extra>'
+    };
+  });
+  const hasOtros = Object.values(otrosByKey).some(v=>v>0);
+  if (hasOtros) {
+    const yOtros = keys.map(k=>otrosByKey[k]||0);
+    traces.push({
+      x:xlabs, y:yOtros, name:'Otros',
+      type:'bar', marker:{color:'#b0b8c1', cornerradius:4},
+      text: yOtros.map((v,i)=>{ const t=totByK[keys[i]]||0; const pct=t>0?v/t:0; return pct>=0.07?(pct*100).toFixed(0)+'%':''; }),
+      textposition:'inside', insidetextanchor:'middle',
+      hovertemplate:'%{y:,.0f}<extra>Otros</extra>'
+    });
+  }
+
+  Plotly.newPlot('chart-dem-spaces', traces, {
+    barmode:'stack', height:300, margin:{t:30,r:20,b:70,l:50},
+    paper_bgcolor:'#fff', plot_bgcolor:'#fff',
+    xaxis: xaxisCfg,
+    yaxis:{tickformat:'~s',title:'Sesiones'},
+    legend:{orientation:'h',y:-0.3}
+  }, {responsive:true, displayModeBar:false});
+}
+
+function buildDemDeepdive(start, end, lwS, lwE) {
+  const ss = RAW.sessions_space || [];
+  const aggTW = {}, aggLW = {};
+  ss.filter(r=>r.date>=start&&r.date<=end).forEach(r=>{
+    if (!aggTW[r.space]) aggTW[r.space]={sessions:0,orders:0,app:r.app};
+    aggTW[r.space].sessions+=r.sessions||0; aggTW[r.space].orders+=r.orders||0;
+  });
+  ss.filter(r=>r.date>=lwS&&r.date<=lwE).forEach(r=>{
+    if (!aggLW[r.space]) aggLW[r.space]={sessions:0,orders:0};
+    aggLW[r.space].sessions+=r.sessions||0; aggLW[r.space].orders+=r.orders||0;
+  });
+
+  const spaces = Object.keys(aggTW).sort((a,b)=>aggTW[b].sessions-aggTW[a].sessions);
+
+  let rows = '';
+  spaces.forEach((sp,i) => {
+    const tw = aggTW[sp], lw = aggLW[sp]||{sessions:0,orders:0};
+    const cvr   = tw.sessions ? tw.orders/tw.sessions : 0;
+    const cvrLw = lw.sessions ? lw.orders/lw.sessions : 0;
+    const dS = pct(tw.sessions, lw.sessions);
+    const dO = pct(tw.orders,   lw.orders);
+    const dC = cvr - cvrLw;
+    const dCHtml = dC !== 0 ? `<span class="${dC>=0?'green':'red'}">${dC>=0?'+':''}${(dC*100).toFixed(2)}pp</span>` : '–';
+    rows += `<tr>` +
+      `<td style="color:#aaa;font-size:11px">${i+1}</td>` +
+      `<td style="text-align:left">${sp}</td>` +
+      `<td>${fmtN(tw.sessions)}</td><td>${deltaHtml(dS)}</td>` +
+      `<td>${fmtN(tw.orders)}</td><td>${deltaHtml(dO)}</td>` +
+      `<td>${fmtP(cvr)}</td><td>${dCHtml}</td>` +
+      `</tr>`;
+  });
+
+  return `<table>` +
+    `<thead><tr>` +
+    `<th>#</th><th>Canal</th>` +
+    `<th>Sesiones</th><th>%Δ</th>` +
+    `<th>Órdenes</th><th>%Δ</th>` +
+    `<th>CVR%</th><th>Δ(pp)</th>` +
+    `</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function buildDemHeatmap(start, end) {
+  const dd = filterRange(RAW.demand_daily||[], start, end);
+  if (!dd.length) return '<p style="color:#888;padding:8px">Sin datos de demanda.</p>';
+
+  // Aggregate sum + count by (category, dow)
+  const agg = {};
+  dd.forEach(r => {
+    if (!agg[r.category]) agg[r.category] = {};
+    if (!agg[r.category][r.dow]) agg[r.category][r.dow] = { sum:0, cnt:0 };
+    agg[r.category][r.dow].sum += r.orders||0;
+    agg[r.category][r.dow].cnt += 1;
+  });
+
+  // Top 15 categories by total avg orders
+  const catTotals = {};
+  Object.entries(agg).forEach(([cat,dows]) => {
+    catTotals[cat] = Object.values(dows).reduce((s,v) => s + v.sum/v.cnt, 0);
+  });
+  const topCats = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,15).map(e=>e[0]);
+
+  const hdr = '<tr><th style="text-align:left">Categoría</th>' +
+    DOW_LABELS.map(d=>`<th>${d}</th>`).join('') + '</tr>';
+
+  const rows = topCats.map(cat => {
+    const avgs = DOW_LABELS.map((_,dow) => {
+      const v = agg[cat]?.[dow];
+      return v ? v.sum / v.cnt : 0;
+    });
+    const rowMax = Math.max(...avgs);
+    const rowMin = Math.min(...avgs.filter(v=>v>0));
+    const peakDow = avgs.indexOf(rowMax);
+
+    const cells = avgs.map((avg, dow) => {
+      let bg = '#fff';
+      if (avg > 0 && rowMax > rowMin) {
+        const t = (avg - rowMin) / (rowMax - rowMin);
+        // white → amber (#e89600)
+        const r2 = Math.round(255 + t*(232-255));
+        const g2 = Math.round(255 + t*(150-255));
+        const b2 = Math.round(255 + t*(0  -255));
+        bg = `rgb(${r2},${g2},${b2})`;
+      } else if (avg > 0) {
+        bg = 'rgb(232,150,0)';
+      }
+      const star = dow === peakDow && avg > 0 ? ' ★' : '';
+      return `<td style="background:${bg}">${avg>0 ? avg.toFixed(0)+star : ''}</td>`;
+    });
+
+    return `<tr><td class="cat-label">${cat}</td>${cells.join('')}</tr>`;
+  });
+
+  return `<table class="hm-table"><thead>${hdr}</thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+// ── Campaign classification ───────────────────────────────────────────────────
+function buildClassifySection(sid, twD, start, end) {
+  const cfg = SPACE_CFG[sid];
+  if (!cfg.hasBrands || !cfg.ordersKey || cfg.noBrandOrders) return '';
+
+  const baselineStart = addDays(start, -30);
+  const baselineEnd   = addDays(start, -1);
+
+  // Brand baseline: avg daily orders over prior 30 days
+  const ob = RAW.orders_brand || [];
+  const brandBaseSum={}, brandBaseCnt={};
+  filterRange(ob, baselineStart, baselineEnd).forEach(r => {
+    const b=normalizeBrand(r.brand);
+    brandBaseSum[b]=(brandBaseSum[b]||0)+(r.orders||0);
+    brandBaseCnt[b]=(brandBaseCnt[b]||0)+1;
+  });
+
+  // Space baseline: avg daily orders over prior 30 days
+  const os = RAW.orders_space || [];
+  let spaceBaseSum=0, spaceBaseCnt=0;
+  filterRange(os.filter(r=>r.space===cfg.ordersKey), baselineStart, baselineEnd).forEach(r=>{
+    spaceBaseSum+=r.orders||0; spaceBaseCnt++;
+  });
+  const spaceBaseAvg = spaceBaseCnt ? spaceBaseSum/spaceBaseCnt : 0;
+
+  // Space orders TW by date
+  const soByDate={};
+  filterRange(os.filter(r=>r.space===cfg.ordersKey), start, end).forEach(r=>{soByDate[r.date]=r.orders||0;});
+
+  // Per (brand, date) prints & taps from normalized data
+  const byBrandDate={};
+  twD.forEach(r => {
+    const b=normalizeBrand(r.brand);
+    if (!byBrandDate[b]) byBrandDate[b]={};
+    if (!byBrandDate[b][r.date]) byBrandDate[b][r.date]={prints:0,taps:0};
+    if (sid==='ms_ml') {
+      byBrandDate[b][r.date].prints+=(r.dia_p||0)+(r.noche_p||0);
+      byBrandDate[b][r.date].taps+=(r.dia_t||0)+(r.noche_t||0);
+    } else {
+      byBrandDate[b][r.date].prints+=r.prints||0;
+      byBrandDate[b][r.date].taps+=r.taps||0;
+    }
+  });
+
+  // Orders per (brand, date) TW
+  const obByBrandDate={};
+  filterRange(ob, start, end).forEach(r => {
+    const b=normalizeBrand(r.brand);
+    if (!obByBrandDate[b]) obByBrandDate[b]={};
+    obByBrandDate[b][r.date]=(obByBrandDate[b][r.date]||0)+(r.orders||0);
+  });
+
+  const G0=[], G1=[], G2=[];
+  Object.entries(byBrandDate).forEach(([brand, dates]) => {
+    const isGeneric = isGenericBrand(brand);
+    const baseAvg = isGeneric ? spaceBaseAvg : (brandBaseCnt[brand] ? brandBaseSum[brand]/brandBaseCnt[brand] : 0);
+    Object.entries(dates).forEach(([date, pt]) => {
+      const ctr      = pt.prints ? pt.taps/pt.prints : 0;
+      const orders   = isGeneric ? (soByDate[date]||0) : (obByBrandDate[brand]?.[date]||0);
+      const upliftTB = baseAvg > 0 ? (orders-baseAvg)/baseAvg : null;
+      const soOrd    = soByDate[date]||0;
+      const upliftRE = spaceBaseAvg > 0 ? (soOrd-spaceBaseAvg)/spaceBaseAvg : null;
+      const item     = { brand, date, ctr, upliftTB, upliftRE };
+      if (upliftTB === null || upliftTB < 0) G2.push(item);
+      else if (ctr >= cfg.ctrTarget)         G0.push(item);
+      else                                   G1.push(item);
+    });
+  });
+
+  const tgt   = (cfg.ctrTarget*100).toFixed(2).replace('.',',') + '%';
+  const G_BG  = ['#e8f5e9','#fffde7','#fdecea'];
+  const G_ICON= ['✅','⚠️','✗'];
+  const G_ICON_BG = ['#27ae60','#e8a800','#e74c3c'];
+  const G_HEAD = [
+    { main:`CTR ≥ ${tgt}`, sub:null },
+    { main:`CTR < ${tgt}`, sub:'Uplift positivo en órdenes' },
+    { main:`CTR < ${tgt}`, sub:'Sin uplift en órdenes' }
+  ];
+  const reLabel = sid==='ms_ml'?'Uplift MS':sid==='shct_mp'?'Uplift SHCT':sid==='xsell_mp'?'Uplift XS':'Uplift MOD';
+  const baselineLbl = `Uplift vs promedio diario ${fmtShort(baselineStart)} – ${fmtShort(baselineEnd)} (30 días)`;
+
+  let html = `<div class="section-title" style="text-transform:uppercase;letter-spacing:.5px">Clasificación de campañas del período</div><div class="classify-wrap"><div style="display:flex;gap:14px;align-items:flex-start">`;
+  [G0,G1,G2].forEach((items,gi) => {
+    const h = G_HEAD[gi];
+    html += `<div style="flex:1;min-width:0;background:${G_BG[gi]};border-radius:8px;padding:12px">`;
+    html += `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:${h.sub?'2':'8'}px">`;
+    html += `<div style="font-size:13px;font-weight:700">${G_ICON[gi]} ${h.main}</div>`;
+    html += `<span style="background:${G_ICON_BG[gi]};color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${items.length}</span>`;
+    html += `</div>`;
+    if (h.sub) html += `<div style="font-size:11px;color:#666;margin-bottom:8px">${h.sub}</div>`;
+    const fmtCTR  = v => (v*100).toFixed(2).replace('.',',')+'\%';
+    const fmtUpl  = v => { if(v===null) return '–'; const s=v>=0?'+':''; const c=v>=0?'#27ae60':'#e74c3c'; return `<span style="color:${c};font-weight:600">${s}${(v*100).toFixed(1).replace('.',',')}%</span>`; };
+    if (!items.length) {
+      html += '<div style="font-size:12px;color:#888;padding:4px 0">Sin campañas</div>';
+    } else {
+      html += `<table style="width:100%;font-size:12px;border-collapse:collapse">`;
+      html += `<tbody>`;
+      html += `<tr>`;
+      html += `<td style="padding:3px 8px;color:#999;font-size:11px;text-align:left"></td>`;
+      html += `<td style="padding:3px 8px;color:#999;font-size:11px;text-align:right">CTR</td>`;
+      html += `<td style="padding:3px 8px;color:#999;font-size:11px;text-align:right">Uplift TB</td>`;
+      html += `<td style="padding:3px 8px;color:#999;font-size:11px;text-align:right">${reLabel}</td>`;
+      html += `</tr>`;
+      items.sort((a,b)=>a.date.localeCompare(b.date)).forEach(item=>{
+        const cColor=item.ctr>=cfg.ctrTarget?'#27ae60':'#e74c3c';
+        html+=`<tr>`;
+        html+=`<td style="padding:3px 8px;text-align:left;white-space:nowrap">${chipHtml(item.brand)} <span style="color:#555">${fmtShort(item.date)}</span></td>`;
+        html+=`<td style="padding:3px 8px;text-align:right;color:${cColor};font-weight:600">${fmtCTR(item.ctr)}</td>`;
+        html+=`<td style="padding:3px 8px;text-align:right">${fmtUpl(item.upliftTB)}</td>`;
+        html+=`<td style="padding:3px 8px;text-align:right">${fmtUpl(item.upliftRE)}</td>`;
+        html+=`</tr>`;
+      });
+      html+=`</tbody></table>`;
+
+    }
+    html += `<div style="font-size:10px;color:#999;margin-top:8px">${baselineLbl}</div>`;
+    html += `</div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+// ── Banner Delivery (combined ML + MP) ────────────────────────────────────────────
+function renderPmSlider() {
+  if (!RAW) return;
+  const { start, end } = getStartEnd();
+  const lwS = addDays(start,-7), lwE = addDays(end,-7);
+  const el = document.getElementById('tab-pm_slider');
+
+  const mlD  = filterRange(RAW.pm_sl_ml||[], start, end);
+  const mpD  = filterRange(RAW.pm_sl_mp||[], start, end);
+  const mlLW = filterRange(RAW.pm_sl_ml||[], lwS, lwE);
+  const mpLW = filterRange(RAW.pm_sl_mp||[], lwS, lwE);
+
+  let mlP=0,mlT=0,mpP=0,mpT=0,mlPLW=0,mlTLW=0,mpPLW=0,mpTLW=0;
+  mlD.forEach(r=>{mlP+=r.prints||0;mlT+=r.taps||0;});
+  mpD.forEach(r=>{mpP+=r.prints||0;mpT+=r.taps||0;});
+  mlLW.forEach(r=>{mlPLW+=r.prints||0;mlTLW+=r.taps||0;});
+  mpLW.forEach(r=>{mpPLW+=r.prints||0;mpTLW+=r.taps||0;});
+
+  const mlCTR=mlP?mlT/mlP:0, mlCTRLW=mlPLW?mlTLW/mlPLW:0;
+  const mpCTR=mpP?mpT/mpP:0, mpCTRLW=mpPLW?mpTLW/mpPLW:0;
+
+  el.innerHTML =
+    `<div class="page-title">Banner Delivery</div>` +
+    `<div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">` +
+      `<div style="display:flex;flex-direction:column;gap:6px">` +
+        `<div style="font-size:11px;font-weight:800;color:#e8a800;letter-spacing:.8px">▌ ML</div>` +
+        `<div style="display:flex;gap:12px">` +
+          kpiCard('Prints',mlP,mlPLW,fmtM)+kpiCard('CTR',mlCTR,mlCTRLW,fmtP) +
+        `</div>` +
+      `</div>` +
+      `<div style="display:flex;flex-direction:column;gap:6px">` +
+        `<div style="font-size:11px;font-weight:800;color:#95a5a6;letter-spacing:.8px">▌ MP</div>` +
+        `<div style="display:flex;gap:12px">` +
+          kpiCard('Prints',mpP,mpPLW,fmtM)+kpiCard('CTR',mpCTR,mpCTRLW,fmtP) +
+        `</div>` +
+      `</div>` +
+    `</div>` +
+    `<div class="chart-wrap"><div id="chart-pm-slider" style="height:320px"></div></div>` +
+    `<div class="section-title">Prints y CTR por marca (ML + MP)</div>` +
+    `<div class="table-wrap" id="tbl-pm-slider"></div>`;
+
+  buildPmSliderChart(mlD, mpD, start, end);
+  document.getElementById('tbl-pm-slider').innerHTML = buildPmSliderTable(mlD, mpD);
+}
+
+function buildPmSliderChart(mlD, mpD, start, end) {
+  const keys  = granKeys(start, end);
+  const isDay = granularity === 'day';
+  const xlabs = isDay ? keys : keys.map(granLabel);
+  const xaxisCfg = isDay
+    ? { tickformat:'%d/%m', type:'date', tickangle:-45, dtick:'D1', automargin:true }
+    : { type:'category', tickangle:-45, automargin:true };
+
+  const mlByK={},mlTapByK={},mpByK={},mpTapByK={};
+  mlD.forEach(r=>{const k=granKey(r.date);mlByK[k]=(mlByK[k]||0)+(r.prints||0);mlTapByK[k]=(mlTapByK[k]||0)+(r.taps||0);});
+  mpD.forEach(r=>{const k=granKey(r.date);mpByK[k]=(mpByK[k]||0)+(r.prints||0);mpTapByK[k]=(mpTapByK[k]||0)+(r.taps||0);});
+
+  const mlY=keys.map(k=>mlByK[k]||0);
+  const mpY=keys.map(k=>mpByK[k]||0);
+  const mlCTR=keys.map(k=>{const p=mlByK[k]||0,t=mlTapByK[k]||0;return p?t/p:null;});
+  const mpCTR=keys.map(k=>{const p=mpByK[k]||0,t=mpTapByK[k]||0;return p?t/p:null;});
+  const allCTR=[...mlCTR,...mpCTR].filter(v=>v!=null);
+  const maxCtr=allCTR.length?Math.max(...allCTR)*1.6:0.01;
+
+  Plotly.newPlot('chart-pm-slider', [
+    { x:xlabs, y:mlY, name:'Prints ML', type:'bar', marker:{color:'#e8a800',cornerradius:4},
+      text:mlY.map(v=>v>0?fmtM(v):''), textposition:'outside', cliponaxis:false,
+      hovertemplate:'%{y:,.0f}<extra>Prints ML</extra>' },
+    { x:xlabs, y:mpY, name:'Prints MP', type:'bar', marker:{color:'#95a5a6',cornerradius:4},
+      text:mpY.map(v=>v>0?fmtM(v):''), textposition:'outside', cliponaxis:false,
+      hovertemplate:'%{y:,.0f}<extra>Prints MP</extra>' },
+    { x:xlabs, y:mlCTR, name:'CTR ML', type:'scatter', mode:'lines+markers+text', yaxis:'y2',
+      line:{color:'#c8900a',width:2}, marker:{color:'#c8900a',size:5},
+      text:mlCTR.map(v=>v!=null?(v*100).toFixed(2).replace('.',',')+'%':''), textposition:'top center',
+      textfont:{color:'#222222',size:10},
+      hovertemplate:'%{y:.2%}<extra>CTR ML</extra>' },
+    { x:xlabs, y:mpCTR, name:'CTR MP', type:'scatter', mode:'lines+markers+text', yaxis:'y2',
+      line:{color:'#555555',width:2,dash:'dot'}, marker:{color:'#555555',size:5},
+      text:mpCTR.map(v=>v!=null?(v*100).toFixed(2).replace('.',',')+'%':''), textposition:'bottom center',
+      textfont:{color:'#222222',size:10},
+      hovertemplate:'%{y:.2%}<extra>CTR MP</extra>' },
+  ], {
+    barmode:'group', height:320, margin:{t:30,r:70,b:70,l:50},
+    paper_bgcolor:'#fff', plot_bgcolor:'#fff',
+    xaxis:xaxisCfg,
+    yaxis:{tickformat:'~s', title:'Prints'},
+    yaxis2:{overlaying:'y', side:'right', tickformat:'.2%', title:'CTR', range:[0,maxCtr], showgrid:false},
+    legend:{orientation:'h', y:-0.3},
+  }, {responsive:true, displayModeBar:false});
+}
+
+function buildPmSliderTable(mlD, mpD) {
+  if (!mlD.length && !mpD.length) return '<p style="color:#888;padding:8px">Sin datos en el período.</p>';
+  const expanded = expandedBrands['pm_slider'] || new Set();
+
+  const mlByBD={}, mlTapByBD={}, mpByBD={}, mpTapByBD={}, bDates={};
+  mlD.forEach(r=>{
+    const b=normalizeBrand(r.brand);
+    if(!mlByBD[b]) mlByBD[b]={};
+    if(!mlTapByBD[b]) mlTapByBD[b]={};
+    mlByBD[b][r.date]=(mlByBD[b][r.date]||0)+(r.prints||0);
+    mlTapByBD[b][r.date]=(mlTapByBD[b][r.date]||0)+(r.taps||0);
+    if(!bDates[b]) bDates[b]=new Set();
+    bDates[b].add(r.date);
+  });
+  mpD.forEach(r=>{
+    const b=normalizeBrand(r.brand);
+    if(!mpByBD[b]) mpByBD[b]={};
+    if(!mpTapByBD[b]) mpTapByBD[b]={};
+    mpByBD[b][r.date]=(mpByBD[b][r.date]||0)+(r.prints||0);
+    mpTapByBD[b][r.date]=(mpTapByBD[b][r.date]||0)+(r.taps||0);
+    if(!bDates[b]) bDates[b]=new Set();
+    bDates[b].add(r.date);
+  });
+
+  const brands=Object.keys(bDates).sort((a,b)=>{
+    const ta=Object.values(mlByBD[a]||{}).reduce((s,v)=>s+v,0)+Object.values(mpByBD[a]||{}).reduce((s,v)=>s+v,0);
+    const tb=Object.values(mlByBD[b]||{}).reduce((s,v)=>s+v,0)+Object.values(mpByBD[b]||{}).reduce((s,v)=>s+v,0);
+    return tb-ta;
+  });
+
+  const cols=[];
+  brands.forEach(b=>{
+    const dates=[...(bDates[b]||new Set())].sort();
+    const safeB=b.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const clickableChip=`<span onclick="showPmSliderContents('${safeB}',event)" style="cursor:pointer">${chipHtml(b)}</span>`;
+    if(expanded.has(b) && dates.length>1){
+      dates.forEach((dt,i)=>{
+        const arrow=i===0?`<span onclick="togglePmSlider('${safeB}');event.stopPropagation()" style="cursor:pointer;margin-left:4px;font-size:10px">▲</span>`:'';
+        cols.push({brand:b,date:dt,label:`${clickableChip} <span style="font-size:10px">${fmtShort(dt)}</span>${arrow}`});
+      });
+    } else {
+      const canExpand=dates.length>1;
+      const arrow=canExpand?`<span onclick="togglePmSlider('${safeB}');event.stopPropagation()" style="cursor:pointer;margin-left:4px;font-size:10px">${expanded.has(b)?'▲':'▼'}</span>`:'';
+      const dateLabel=dates.length>1
+        ?`<div style="font-size:10px;color:#aaa;margin-top:2px">${fmtShort(dates[0])} – ${fmtShort(dates[dates.length-1])}</div>`
+        :`<div style="font-size:10px;color:#aaa;margin-top:2px">${fmtShort(dates[0])}</div>`;
+      cols.push({brand:b,date:null,label:`${clickableChip}${arrow}${dateLabel}`});
+    }
+  });
+
+  function sumBD(map,brand,date){
+    if(date) return map[brand]?.[date]||0;
+    return Object.values(map[brand]||{}).reduce((s,v)=>s+v,0);
+  }
+
+  let hdr='<tr><th>Métrica</th>';
+  cols.forEach(c=>{hdr+=`<th>${c.label}</th>`;});
+  hdr+='</tr>';
+
+  let rPML='<tr><td style="color:#e8a800;font-weight:700">Prints ML</td>';
+  let rPMP='<tr><td style="color:#95a5a6;font-weight:700">Prints MP</td>';
+  let rCML='<tr><td>CTR ML</td>';
+  let rCMP='<tr><td>CTR MP</td>';
+
+  cols.forEach(c=>{
+    const pml=sumBD(mlByBD,c.brand,c.date), tml=sumBD(mlTapByBD,c.brand,c.date);
+    const pmp=sumBD(mpByBD,c.brand,c.date), tmp=sumBD(mpTapByBD,c.brand,c.date);
+    rPML+=`<td>${pml>0?fmtM(pml):'–'}</td>`;
+    rPMP+=`<td>${pmp>0?fmtM(pmp):'–'}</td>`;
+    rCML+=`<td>${pml?fmtP(tml/pml):'–'}</td>`;
+    rCMP+=`<td>${pmp?fmtP(tmp/pmp):'–'}</td>`;
+  });
+
+  return `<table><thead>${hdr}</thead><tbody>${rPML}</tr>${rPMP}</tr>${rCML}</tr>${rCMP}</tr></tbody></table>`;
+}
+
+// ── Shortcut vs Widget Benefits MP ────────────────────────────────────────────
+function renderShctWidget() {
+  if (!RAW) return;
+  const { start, end } = getStartEnd();
+  const lwS = addDays(start,-7), lwE = addDays(end,-7);
+  const el = document.getElementById('tab-shct_widget');
+
+  const shctD  = filterRange(RAW.shct_only||[], start, end);
+  const wgtD   = filterRange(RAW.widget_only||[], start, end);
+  const shctLW = filterRange(RAW.shct_only||[], lwS, lwE);
+  const wgtLW  = filterRange(RAW.widget_only||[], lwS, lwE);
+
+  let sP=0,sT=0,wP=0,wT=0,sPLW=0,sTLW=0,wPLW=0,wTLW=0;
+  shctD.forEach(r=>{sP+=r.prints||0;sT+=r.taps||0;});
+  wgtD.forEach(r=>{wP+=r.prints||0;wT+=r.taps||0;});
+  shctLW.forEach(r=>{sPLW+=r.prints||0;sTLW+=r.taps||0;});
+  wgtLW.forEach(r=>{wPLW+=r.prints||0;wTLW+=r.taps||0;});
+
+  const sCTR=sP?sT/sP:0, sCTRLW=sPLW?sTLW/sPLW:0;
+  const wCTR=wP?wT/wP:0, wCTRLW=wPLW?wTLW/wPLW:0;
+
+  el.innerHTML =
+    `<div class="page-title">Shct vs Widget MP</div>` +
+    `<div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">` +
+      `<div style="display:flex;flex-direction:column;gap:6px">` +
+        `<div style="font-size:11px;font-weight:800;color:#4f6af5;letter-spacing:.8px">▌ Shortcut</div>` +
+        `<div style="display:flex;gap:12px">` +
+          kpiCard('Prints',sP,sPLW,fmtM)+kpiCard('CTR',sCTR,sCTRLW,fmtP) +
+        `</div>` +
+      `</div>` +
+      `<div style="display:flex;flex-direction:column;gap:6px">` +
+        `<div style="font-size:11px;font-weight:800;color:#27ae60;letter-spacing:.8px">▌ Widget Benefits</div>` +
+        `<div style="display:flex;gap:12px">` +
+          kpiCard('Prints',wP,wPLW,fmtM)+kpiCard('CTR',wCTR,wCTRLW,fmtP) +
+        `</div>` +
+      `</div>` +
+    `</div>` +
+    `<div class="chart-wrap"><div id="chart-shct-widget" style="height:320px"></div></div>` +
+    `<div class="section-title" style="margin-top:24px;color:#4f6af5">Shortcut (mp_home_business_shortcuts_v2) — Órdenes por marca</div>` +
+    `<div class="table-wrap" id="tbl-shct_only"></div>` +
+    `<div class="section-title" style="margin-top:24px;color:#27ae60">Widget Benefits (benefits_home_mp3) — Órdenes por marca</div>` +
+    `<div class="table-wrap" id="tbl-widget_only"></div>`;
+
+  buildShctWidgetChart(shctD, wgtD, start, end);
+  document.getElementById('tbl-shct_only').innerHTML = buildBrandTable('shct_only', shctD, start, end, lwS, lwE);
+  document.getElementById('tbl-widget_only').innerHTML = buildBrandTable('widget_only', wgtD, start, end, lwS, lwE);
+}
+
+function buildShctWidgetChart(shctD, wgtD, start, end) {
+  const keys  = granKeys(start, end);
+  const isDay = granularity === 'day';
+  const xlabs = isDay ? keys : keys.map(granLabel);
+  const xaxisCfg = isDay
+    ? { tickformat:'%d/%m', type:'date', tickangle:-45, dtick:'D1', automargin:true }
+    : { type:'category', tickangle:-45, automargin:true };
+
+  const sByK={},sTapByK={},wByK={},wTapByK={};
+  shctD.forEach(r=>{const k=granKey(r.date);sByK[k]=(sByK[k]||0)+(r.prints||0);sTapByK[k]=(sTapByK[k]||0)+(r.taps||0);});
+  wgtD.forEach(r=>{const k=granKey(r.date);wByK[k]=(wByK[k]||0)+(r.prints||0);wTapByK[k]=(wTapByK[k]||0)+(r.taps||0);});
+
+  const sY=keys.map(k=>sByK[k]||0);
+  const wY=keys.map(k=>wByK[k]||0);
+  const sCTR=keys.map(k=>{const p=sByK[k]||0,t=sTapByK[k]||0;return p?t/p:null;});
+  const wCTR=keys.map(k=>{const p=wByK[k]||0,t=wTapByK[k]||0;return p?t/p:null;});
+  const allCTR=[...sCTR,...wCTR].filter(v=>v!=null);
+  const maxCtr=allCTR.length?Math.max(...allCTR)*1.6:0.01;
+
+  Plotly.newPlot('chart-shct-widget', [
+    { x:xlabs, y:sY, name:'Prints Shortcut', type:'bar', marker:{color:'#4f6af5',cornerradius:4},
+      text:sY.map(v=>v>0?fmtM(v):''), textposition:'outside', cliponaxis:false,
+      hovertemplate:'%{y:,.0f}<extra>Prints Shct</extra>' },
+    { x:xlabs, y:wY, name:'Prints Widget', type:'bar', marker:{color:'#27ae60',cornerradius:4},
+      text:wY.map(v=>v>0?fmtM(v):''), textposition:'outside', cliponaxis:false,
+      hovertemplate:'%{y:,.0f}<extra>Prints Wgt</extra>' },
+    { x:xlabs, y:sCTR, name:'CTR Shortcut', type:'scatter', mode:'lines+markers+text', yaxis:'y2',
+      line:{color:'#3a4fb8',width:2}, marker:{color:'#3a4fb8',size:5},
+      text:sCTR.map(v=>v!=null?(v*100).toFixed(2).replace('.',',')+'%':''), textposition:'top center',
+      textfont:{color:'#222222',size:10},
+      hovertemplate:'%{y:.2%}<extra>CTR Shct</extra>' },
+    { x:xlabs, y:wCTR, name:'CTR Widget', type:'scatter', mode:'lines+markers+text', yaxis:'y2',
+      line:{color:'#1d7a44',width:2,dash:'dot'}, marker:{color:'#1d7a44',size:5},
+      text:wCTR.map(v=>v!=null?(v*100).toFixed(2).replace('.',',')+'%':''), textposition:'bottom center',
+      textfont:{color:'#222222',size:10},
+      hovertemplate:'%{y:.2%}<extra>CTR Wgt</extra>' },
+  ], {
+    barmode:'group', height:320, margin:{t:30,r:70,b:70,l:50},
+    paper_bgcolor:'#fff', plot_bgcolor:'#fff',
+    xaxis:xaxisCfg,
+    yaxis:{tickformat:'~s', title:'Prints'},
+    yaxis2:{overlaying:'y', side:'right', tickformat:'.2%', title:'CTR', range:[0,maxCtr], showgrid:false},
+    legend:{orientation:'h', y:-0.3},
+  }, {responsive:true, displayModeBar:false});
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>
